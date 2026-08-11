@@ -3,7 +3,8 @@ import Navbar from './components/Navbar';
 import AuthModal from './components/AuthModal';
 import ProjectCard from './components/ProjectCard';
 import CreateProjectModal from './components/CreateProjectModal';
-import AlertModal from './components/AlertModal';
+import EditTemplateModal from './components/EditTemplateModal';
+import CustomAlertModal from './components/CustomAlertModal';
 import Toast from './components/Toast';
 import { api, getStoredToken, getStoredUser, setStoredToken, setStoredUser } from './api/client';
 import { Tv, Plus, Sparkles } from 'lucide-react';
@@ -17,6 +18,7 @@ export default function App() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [targetProjectForAlert, setTargetProjectForAlert] = useState(null);
+  const [targetProjectForEdit, setTargetProjectForEdit] = useState(null);
 
   // Toast state
   const [toastMsg, setToastMsg] = useState('');
@@ -95,7 +97,7 @@ export default function App() {
               Real-Time Stream Overlays for OBS Studio
             </h2>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Create streaming projects, generate custom OBS Studio Overlay URLs with flexible screen positioning, and broadcast live alerts powered by Golang & SSE.
+              Create streaming projects, customize unique OBS Studio Overlay URLs with HTML/CSS templates, and broadcast live alerts powered by Golang & SSE.
             </p>
           </div>
 
@@ -111,7 +113,7 @@ export default function App() {
                 Your Stream Projects
               </h2>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                Select positioning presets and copy OBS Browser Source links
+                Each project represents 1 specific OBS Browser Source Overlay URL with custom HTML/CSS
               </p>
             </div>
 
@@ -150,7 +152,9 @@ export default function App() {
                 <ProjectCard
                   key={proj.id}
                   project={proj}
-                  onOpenAlert={(p) => setTargetProjectForAlert(p)}
+                  onOpenTriggerAlert={(p) => setTargetProjectForAlert(p)}
+                  onOpenEditTemplate={(p) => setTargetProjectForEdit(p)}
+                  onDeleteSuccess={fetchProjects}
                   showToast={showToast}
                 />
               ))}
@@ -177,7 +181,15 @@ export default function App() {
         showToast={showToast}
       />
 
-      <AlertModal
+      <EditTemplateModal
+        project={targetProjectForEdit}
+        isOpen={!!targetProjectForEdit}
+        onClose={() => setTargetProjectForEdit(null)}
+        onSuccess={fetchProjects}
+        showToast={showToast}
+      />
+
+      <CustomAlertModal
         project={targetProjectForAlert}
         isOpen={!!targetProjectForAlert}
         onClose={() => setTargetProjectForAlert(null)}

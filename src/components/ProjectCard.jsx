@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Copy, Radio, Zap, Settings, Check } from 'lucide-react';
-import { BACKEND_URL } from '../api/client';
+import { Copy, Radio, Zap, Settings, Check, Code, Trash2 } from 'lucide-react';
+import { BACKEND_URL, api } from '../api/client';
 
-export default function ProjectCard({ project, onOpenAlert, showToast }) {
+export default function ProjectCard({ project, onOpenTriggerAlert, onOpenEditTemplate, onDeleteSuccess, showToast }) {
   const [align, setAlign] = useState('top-left');
   const [copied, setCopied] = useState(false);
 
@@ -15,6 +15,17 @@ export default function ProjectCard({ project, onOpenAlert, showToast }) {
       showToast('📋 OBS Overlay URL copied to clipboard!');
       setTimeout(() => setCopied(false), 2000);
     });
+  }
+
+  async function handleDelete() {
+    if (!window.confirm(`Are you sure you want to delete project "${project.name}"?`)) return;
+    try {
+      await api.deleteProject(project.uuid);
+      showToast('🗑️ Project deleted');
+      onDeleteSuccess();
+    } catch (err) {
+      showToast('❌ Failed to delete project');
+    }
   }
 
   return (
@@ -38,9 +49,21 @@ export default function ProjectCard({ project, onOpenAlert, showToast }) {
             <Radio size={20} color="#818cf8" />
           </div>
           <div>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#ffffff' }}>
-              {project.name}
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#ffffff' }}>
+                {project.name}
+              </h3>
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.72rem',
+                background: 'rgba(168, 85, 247, 0.2)',
+                color: '#c084fc',
+                padding: '2px 8px',
+                borderRadius: '6px'
+              }}>
+                {project.event_type || 'donation'}
+              </span>
+            </div>
             <span style={{
               fontFamily: 'var(--font-mono)',
               fontSize: '0.78rem',
@@ -51,14 +74,33 @@ export default function ProjectCard({ project, onOpenAlert, showToast }) {
           </div>
         </div>
 
-        <button
-          className="btn-primary"
-          onClick={() => onOpenAlert(project)}
-          style={{ padding: '8px 14px', fontSize: '0.85rem' }}
-        >
-          <Zap size={16} />
-          <span>Test Alert</span>
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            className="btn-secondary"
+            onClick={() => onOpenEditTemplate(project)}
+            style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+          >
+            <Code size={15} />
+            <span>Edit Template</span>
+          </button>
+
+          <button
+            className="btn-primary"
+            onClick={() => onOpenTriggerAlert(project)}
+            style={{ padding: '8px 14px', fontSize: '0.85rem' }}
+          >
+            <Zap size={15} />
+            <span>Trigger Alert</span>
+          </button>
+
+          <button
+            className="btn-danger"
+            onClick={handleDelete}
+            style={{ padding: '8px 10px' }}
+          >
+            <Trash2 size={15} />
+          </button>
+        </div>
       </div>
 
       {project.description && (

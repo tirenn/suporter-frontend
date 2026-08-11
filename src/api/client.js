@@ -65,20 +65,31 @@ export const api = {
       body: JSON.stringify({ email, password })
     }),
 
-  // Projects
+  // Projects (1 Project = 1 OBS Template Overlay)
   getProjects: () => request('/projects', { method: 'GET' }),
 
-  createProject: (name, description) => 
+  createProject: (name, description, templateData = {}) => 
     request('/projects', {
       method: 'POST',
-      body: JSON.stringify({ name, description })
+      body: JSON.stringify({ name, description, ...templateData })
     }),
 
   getProjectByUUID: (uuid) => request(`/projects/${uuid}`, { method: 'GET' }),
 
-  triggerAlert: (projectUUID, { name, message, type, duration }) => 
+  updateProject: (uuid, updateData) => 
+    request(`/projects/${uuid}`, {
+      method: 'PUT',
+      body: JSON.stringify(updateData)
+    }),
+
+  deleteProject: (uuid) => 
+    request(`/projects/${uuid}`, {
+      method: 'DELETE'
+    }),
+
+  triggerAlert: (projectUUID, alertData, duration) => 
     request(`/projects/${projectUUID}/alert`, {
       method: 'POST',
-      body: JSON.stringify({ name, message, type, duration: duration || 5000 })
+      body: JSON.stringify({ ...alertData, duration: duration || 5000 })
     })
 };
