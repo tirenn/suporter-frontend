@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
-import { Copy, Radio, Zap, Settings, Check, Code, Trash2 } from 'lucide-react';
+import { Copy, Radio, Zap, Settings, Check, Code, Trash2, Key } from 'lucide-react';
 import { BACKEND_URL, api } from '../api/client';
 
 export default function ProjectCard({ project, onOpenTriggerAlert, onOpenEditTemplate, onDeleteSuccess, showToast }) {
   const [align, setAlign] = useState('top-left');
-  const [copied, setCopied] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(false);
 
   const rawBaseUrl = project.obs_url || `${BACKEND_URL}/overlay/${project.uuid}`;
   const finalObsUrl = align === 'top-left' ? rawBaseUrl : `${rawBaseUrl}?align=${align}`;
 
-  function handleCopy() {
+  function handleCopyUrl() {
     navigator.clipboard.writeText(finalObsUrl).then(() => {
-      setCopied(true);
+      setCopiedUrl(true);
       showToast('📋 OBS Overlay URL copied to clipboard!');
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopiedUrl(false), 2000);
     });
   }
 
@@ -56,8 +57,8 @@ export default function ProjectCard({ project, onOpenTriggerAlert, onOpenEditTem
               <span style={{
                 fontFamily: 'var(--font-mono)',
                 fontSize: '0.72rem',
-                background: 'rgba(168, 85, 247, 0.2)',
-                color: '#c084fc',
+                background: 'rgba(16, 185, 129, 0.2)',
+                color: '#34d399',
                 padding: '2px 8px',
                 borderRadius: '6px'
               }}>
@@ -171,11 +172,11 @@ export default function ProjectCard({ project, onOpenTriggerAlert, onOpenEditTem
 
           <button
             className="btn-secondary"
-            onClick={handleCopy}
+            onClick={handleCopyUrl}
             style={{ padding: '6px 12px', fontSize: '0.8rem' }}
           >
-            {copied ? <Check size={14} color="#34d399" /> : <Copy size={14} />}
-            <span>{copied ? 'Copied!' : 'Copy URL'}</span>
+            {copiedUrl ? <Check size={14} color="#34d399" /> : <Copy size={14} />}
+            <span>{copiedUrl ? 'Copied!' : 'Copy Overlay URL'}</span>
           </button>
         </div>
       </div>

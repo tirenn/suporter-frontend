@@ -23,7 +23,7 @@ export default function CustomAlertModal({ project, isOpen, onClose, showToast }
 
     try {
       await api.triggerAlert(project.uuid, { name, amount, message }, Number(duration));
-      showToast(`⚡ Donation alert triggered to OBS Overlay (${project.name})!`);
+      showToast(`⚡ Donation alert authenticated & triggered to OBS Overlay (${project.name})!`);
       onClose();
     } catch (err) {
       showToast('❌ ' + (err.message || 'Failed to trigger donation alert'));
@@ -143,7 +143,7 @@ export default function CustomAlertModal({ project, isOpen, onClose, showToast }
             style={{ width: '100%', justifyContent: 'center', marginTop: '12px', padding: '14px' }}
           >
             <Zap size={18} />
-            <span>{loading ? 'Triggering...' : 'Broadcast Donation Alert to OBS'}</span>
+            <span>{loading ? 'Triggering...' : 'Broadcast Authenticated Alert'}</span>
           </button>
         </form>
       </div>

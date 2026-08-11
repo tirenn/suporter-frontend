@@ -11,8 +11,12 @@ export function setStoredToken(token) {
   if (token) {
     localStorage.setItem('jwt_token', token);
   } else {
-    localStorage.removeItem('jwt_token');
+    removeItemFromLocalStorage('jwt_token');
   }
+}
+
+function removeItemFromLocalStorage(key) {
+  localStorage.removeItem(key);
 }
 
 export function getStoredUser() {
@@ -24,7 +28,7 @@ export function setStoredUser(user) {
   if (user) {
     localStorage.setItem('user_data', JSON.stringify(user));
   } else {
-    localStorage.removeItem('user_data');
+    removeItemFromLocalStorage('user_data');
   }
 }
 
@@ -53,16 +57,16 @@ async function request(endpoint, options = {}) {
 
 export const api = {
   // Auth
-  register: (name, email, password) => 
+  register: (name, username, password, role = 'streamer') => 
     request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ name, email, password })
+      body: JSON.stringify({ name, username, password, role })
     }),
 
-  login: (email, password) => 
+  login: (username, password) => 
     request('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ username, password })
     }),
 
   // Projects (1 Project = 1 OBS Template Overlay)
@@ -90,6 +94,18 @@ export const api = {
   triggerAlert: (projectUUID, alertData, duration) => 
     request(`/projects/${projectUUID}/alert`, {
       method: 'POST',
-      body: JSON.stringify({ ...alertData, duration: duration || 5000 })
+      body: JSON.stringify({ ...alertData, duration: duration || 7000 })
+    }),
+
+  // Donations (Requires Viewer Role)
+  createDonation: (streamerUsername, senderName, amount, message) => 
+    request('/donations', {
+      method: 'POST',
+      body: JSON.stringify({
+        streamer_username: streamerUsername,
+        sender_name: senderName,
+        amount: Number(amount),
+        message
+      })
     })
 };

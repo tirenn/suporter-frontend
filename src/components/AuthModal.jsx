@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { api, setStoredToken, setStoredUser } from '../api/client';
-import { Lock, Mail, User, X } from 'lucide-react';
+import { Lock, User, X } from 'lucide-react';
 
 export default function AuthModal({ isOpen, onClose, onSuccess, showToast }) {
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -18,10 +18,10 @@ export default function AuthModal({ isOpen, onClose, onSuccess, showToast }) {
     try {
       let res;
       if (isRegister) {
-        res = await api.register(name, email, password);
+        res = await api.register(name, username, password);
         showToast('🎉 Account registered successfully!');
       } else {
-        res = await api.login(email, password);
+        res = await api.login(username, password);
         showToast('✅ Logged in successfully!');
       }
 
@@ -136,18 +136,18 @@ export default function AuthModal({ isOpen, onClose, onSuccess, showToast }) {
           )}
 
           <div className="input-group">
-            <label className="input-label">Email Address</label>
+            <label className="input-label">Username</label>
             <div style={{ position: 'relative' }}>
               <input
-                type="email"
+                type="text"
                 className="input-field"
-                placeholder="streamer@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                placeholder="johndoe"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
                 style={{ paddingLeft: '42px' }}
               />
-              <Mail size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '14px', top: '14px' }} />
+              <User size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '14px', top: '14px' }} />
             </div>
           </div>
 
@@ -180,3 +180,4 @@ export default function AuthModal({ isOpen, onClose, onSuccess, showToast }) {
     </div>
   );
 }
+
