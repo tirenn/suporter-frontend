@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { BACKEND_URL, api, getStoredToken, getStoredUser, setStoredToken, setStoredUser } from './api/client';
-import { Tv, Plus, Sparkles, Key, Radio, Zap, Code, Trash2, Shield, User, ArrowLeft, Landmark, MessageSquare, Copy, Check, Info } from 'lucide-react';
+import { BACKEND_URL, api, executeRecaptcha, getStoredToken, getStoredUser, setStoredToken, setStoredUser } from './api/client';
+import {
+  Tv, Plus, Sparkles, Shield, ArrowLeft, Landmark,
+  Copy, Check, Heart, ExternalLink, Edit3, Save, X,
+  Eye, EyeOff,
+} from 'lucide-react';
 import ProjectCard from './components/ProjectCard';
 import CreateProjectModal from './components/CreateProjectModal';
 import EditTemplateModal from './components/EditTemplateModal';
@@ -9,10 +13,10 @@ import Toast from './components/Toast';
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [view, setView] = useState('landing'); // 'landing', 'streamer-login', 'viewer-login', 'dashboard'
-  
+  const [view, setView] = useState('landing'); // 'landing' | 'streamer-login' | 'dashboard'
+
   // Auth state
-  const [authMode, setAuthMode] = useState('login'); // 'login', 'register'
+  const [authMode, setAuthMode] = useState('login');
   const [authName, setAuthName] = useState('');
   const [authUsername, setAuthUsername] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -21,34 +25,35 @@ export default function App() {
   const [projects, setProjects] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
 
-  // Donation state
-  const [donationStreamer, setDonationStreamer] = useState('');
-  const [donationAmount, setDonationAmount] = useState('50000');
-  const [customAmount, setCustomAmount] = useState('');
-  const [donationSender, setDonationSender] = useState('');
-  const [donationMessage, setDonationMessage] = useState('');
-  const [createdDonation, setCreatedDonation] = useState(null);
-  const [simulatingWebhook, setSimulatingWebhook] = useState(false);
-  const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
+  // QRIS URL editing
+  const [editingQRIS, setEditingQRIS] = useState(false);
+  const [qrisInput, setQrisInput] = useState('');
+  const [savingQRIS, setSavingQRIS] = useState(false);
 
-  // Modals state
+  // Landing: navigate-to-donate input
+  const [donateTarget, setDonateTarget] = useState('');
+
+  // Webhook copy
+  const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
+  const [copiedWebhookKey, setCopiedWebhookKey] = useState(false);
+  const [showWebhookKey, setShowWebhookKey] = useState(false);
+
+  // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [targetProjectForAlert, setTargetProjectForAlert] = useState(null);
   const [targetProjectForEdit, setTargetProjectForEdit] = useState(null);
 
-  // Toast state
+  // Toast
   const [toastMsg, setToastMsg] = useState('');
 
   useEffect(() => {
     const token = getStoredToken();
     const u = getStoredUser();
-
     if (token && u) {
       setUser(u);
+      setQrisInput(u.qris_url || '');
       setView('dashboard');
-      if (u.role === 'streamer') {
-        fetchProjects();
-      }
+      fetchProjects();
     }
   }, []);
 
@@ -74,129 +79,100 @@ export default function App() {
     setStoredUser(null);
     setUser(null);
     setProjects([]);
-    setCreatedDonation(null);
     setView('landing');
     showToast('👋 Logged out successfully');
   }
 
-  async function handleAuthSubmit(e, role) {
+  async function handleAuthSubmit(e) {
     e.preventDefault();
+    
     try {
+      const token = await executeRecaptcha(authMode);
+      
       let res;
       if (authMode === 'register') {
-        res = await api.register(authName, authUsername, authPassword, role);
+        res = await api.register(authName, authUsername, authPassword, token);
         showToast('🎉 Account registered successfully!');
       } else {
-        res = await api.login(authUsername, authPassword);
+        res = await api.login(authUsername, authPassword, token);
         showToast('✅ Logged in successfully!');
       }
 
       setStoredToken(res.access_token);
       setStoredUser(res.user);
       setUser(res.user);
-      
-      // Clear fields
+      setQrisInput(res.user.qris_url || '');
       setAuthName('');
       setAuthUsername('');
       setAuthPassword('');
-
       setView('dashboard');
-      if (res.user.role === 'streamer') {
-        fetchProjects();
-      }
+      fetchProjects();
     } catch (err) {
       showToast('❌ ' + (err.message || 'Authentication failed'));
     }
   }
 
-  async function handleCreateDonation(e) {
-    e.preventDefault();
-    const finalAmount = donationAmount === 'custom' ? Number(customAmount) : Number(donationAmount);
-    
-    if (finalAmount < 5000 || finalAmount > 10000000) {
-      showToast('⚠️ Nominal donasi harus di antara Rp 5.000 dan Rp 10.000.000');
+  async function handleSaveQRIS() {
+    if (!qrisInput.trim()) {
+      showToast('⚠️ Masukkan URL QRIS yang valid');
       return;
     }
-
+    setSavingQRIS(true);
     try {
-      const donation = await api.createDonation(donationStreamer, donationSender, finalAmount, donationMessage);
-      setCreatedDonation(donation);
-      showToast('🧾 Kode unik pembayaran telah dibuat!');
+      await api.updateProfile(qrisInput.trim());
+      // Update local user cache
+      const updatedUser = { ...user, qris_url: qrisInput.trim() };
+      setStoredUser(updatedUser);
+      setUser(updatedUser);
+      setEditingQRIS(false);
+      showToast('✅ QRIS URL berhasil disimpan!');
     } catch (err) {
-      showToast('❌ ' + (err.message || 'Gagal memproses donasi'));
-    }
-  }
-
-  async function simulateWebhookTrigger() {
-    if (!createdDonation) return;
-    setSimulatingWebhook(true);
-    try {
-      // Look up streamer webhook key via project or ask database
-      // The viewer can authenticate using the webhook directly to simulate payment validation
-      const targetUser = await fetch(`${BACKEND_URL}/api/v1/projects`).then(r => r.json()).catch(() => ({}));
-      
-      const response = await fetch(`${BACKEND_URL}/api/v1/webhooks/donation?key=${user.webhook_key || 'mock_key'}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: createdDonation.total_amount })
-      });
-      const data = await response.json();
-      
-      if (response.ok) {
-        showToast('💸 Pembayaran Terverifikasi! Alert telah dikirim ke OBS.');
-        setCreatedDonation(prev => ({ ...prev, status: 'completed' }));
-      } else {
-        // Fallback for simulation if streamer key is local to user
-        const simulatedUrl = `${BACKEND_URL}/api/v1/webhooks/donation`;
-        showToast(`💡 Gunakan API webhook ini untuk simulasi:\nPOST ${simulatedUrl}`);
-      }
-    } catch (err) {
-      // Direct post to simulate match
-      showToast('💡 Hubungi server simulasi webhook untuk donasi');
+      showToast('❌ ' + (err.message || 'Gagal menyimpan QRIS URL'));
     } finally {
-      setSimulatingWebhook(false);
+      setSavingQRIS(false);
     }
   }
 
-  function handleCopyWebhookUrl(key) {
-    const url = `${BACKEND_URL}/api/v1/webhooks/donation?key=${key}`;
+  function handleCopyWebhookUrl() {
+    const url = `${BACKEND_URL}/api/v1/webhooks/donation`;
     navigator.clipboard.writeText(url).then(() => {
       setCopiedWebhookUrl(true);
-      showToast('📋 Webhook URL copied to clipboard!');
+      showToast('📋 Webhook URL copied!');
       setTimeout(() => setCopiedWebhookUrl(false), 2000);
     });
   }
 
+  function handleCopyWebhookKey(key) {
+    navigator.clipboard.writeText(key).then(() => {
+      setCopiedWebhookKey(true);
+      showToast('📋 Webhook Key copied!');
+      setTimeout(() => setCopiedWebhookKey(false), 2000);
+    });
+  }
+
+  function handleGoToDonate(e) {
+    e.preventDefault();
+    const slug = donateTarget.trim().toLowerCase();
+    if (!slug) return;
+    window.location.href = `/donate/${encodeURIComponent(slug)}`;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '20px 20px 60px' }}>
-      
-      {/* Header Bar */}
-      <header style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'between',
-        padding: '16px 24px',
-        background: 'rgba(15, 23, 42, 0.4)',
-        backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        borderRadius: '16px',
-        marginBottom: '24px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => view !== 'dashboard' && setView('landing')}>
-          <Tv size={24} color="#10b981" />
-          <h1 style={{ fontSize: '1.25rem', fontWeight: '850', background: 'linear-gradient(90deg, #10b981, #3b82f6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            SUPORTER
-          </h1>
-        </div>
 
+      {/* Header */}
+      <header style={hdr.bar}>
+        <div style={hdr.brand} onClick={() => view !== 'dashboard' && setView('landing')}>
+          <Tv size={24} color="#10b981" />
+          <h1 style={hdr.title}>SUPORTER</h1>
+        </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           {user ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  Logged in as <strong style={{ color: '#ffffff' }}>@{user.username}</strong> ({user.role})
-                </span>
-              </div>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                Logged in as <strong style={{ color: '#fff' }}>@{user.username}</strong>
+              </span>
               <button className="btn-secondary" onClick={handleLogout} style={{ padding: '8px 16px' }}>
                 Logout
               </button>
@@ -204,96 +180,88 @@ export default function App() {
           ) : (
             view !== 'landing' && (
               <button className="btn-secondary" onClick={() => setView('landing')}>
-                <ArrowLeft size={16} />
-                <span>Kembali</span>
+                <ArrowLeft size={16} /> Kembali
               </button>
             )
           )}
         </div>
       </header>
 
-      {/* View Switcher */}
+      {/* ── LANDING ── */}
       {view === 'landing' && (
         <main className="fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px', marginTop: '40px' }}>
           <div style={{ textAlign: 'center', maxWidth: '600px' }}>
-            <div style={{
-              display: 'inline-flex',
-              padding: '8px 16px',
-              borderRadius: '30px',
-              background: 'rgba(16, 185, 129, 0.1)',
-              border: '1px solid rgba(16, 185, 129, 0.2)',
-              color: '#34d399',
-              fontSize: '0.85rem',
-              fontWeight: '700',
-              marginBottom: '16px',
-              gap: '6px',
-              alignItems: 'center'
-            }}>
+            <div style={badge}>
               <Sparkles size={14} />
-              <span>Multi-Role Streaming Widgets</span>
+              <span>Real-Time Streaming Donation Platform</span>
             </div>
-            <h2 style={{ fontSize: '2.5rem', fontWeight: '850', lineHeight: 1.2, color: '#ffffff', marginBottom: '14px' }}>
-              Real-Time Donation Overlay & Verification Webhook
+            <h2 style={{ fontSize: '2.5rem', fontWeight: '850', lineHeight: 1.2, color: '#fff', marginBottom: '14px' }}>
+              Real-Time Donation Overlay &amp; Verification Webhook
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', lineHeight: 1.6 }}>
-              Choose your profile type below to configure custom alerts or make automated QRIS payments with secure unique payment codes.
+              Streamers manage OBS overlays and alerts. Viewers donate instantly — no sign-up required.
             </p>
           </div>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '24px',
-            width: '100%',
-            maxWidth: '800px'
-          }}>
-            {/* Streamer Portal Card */}
-            <div className="glass-card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '16px', border: '1px solid rgba(99, 102, 241, 0.25)' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'rgba(99, 102, 241, 0.15)', display: 'flex', alignItems: 'center', justify: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', width: '100%', maxWidth: '820px' }}>
+            {/* Streamer Card */}
+            <div className="glass-card" style={card}>
+              <div style={cardIcon('#6366f1', 0.15)}>
                 <Tv size={24} color="#818cf8" />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#ffffff', marginBottom: '6px' }}>Streamer Portal</h3>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  Manage OBS overlay styles, HTML/CSS templates, customize layouts, and retrieve webhook integration keys.
-                </p>
+                <h3 style={cardTitle}>Streamer Portal</h3>
+                <p style={cardDesc}>Manage OBS overlay styles, templates, and retrieve webhook integration keys.</p>
               </div>
-              <button className="btn-primary" style={{ marginTop: 'auto', background: 'linear-gradient(90deg, #6366f1, #4f46e5)' }} onClick={() => { setAuthMode('login'); setView('streamer-login'); }}>
+              <button
+                className="btn-primary"
+                style={{ marginTop: 'auto', background: 'linear-gradient(90deg, #6366f1, #4f46e5)' }}
+                onClick={() => { setAuthMode('login'); setView('streamer-login'); }}
+              >
                 Enter Streamer Portal
               </button>
             </div>
 
-            {/* Viewer Portal Card */}
-            <div className="glass-card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '16px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justify: 'center' }}>
-                <Landmark size={24} color="#34d399" />
+            {/* Donate Card */}
+            <div className="glass-card" style={{ ...card, border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+              <div style={cardIcon('#10b981', 0.15)}>
+                <Heart size={24} color="#34d399" />
               </div>
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#ffffff', marginBottom: '6px' }}>Viewer Portal</h3>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  Donate to streamers using QRIS, input messages, and generate unique verification payment codes.
-                </p>
+                <h3 style={cardTitle}>Donate to Streamer</h3>
+                <p style={cardDesc}>Support your favourite streamer with QRIS. Input their username below.</p>
               </div>
-              <button className="btn-primary" style={{ marginTop: 'auto', background: 'linear-gradient(90deg, #10b981, #059669)' }} onClick={() => { setAuthMode('login'); setView('viewer-login'); }}>
-                Enter Viewer Portal
-              </button>
+              <form onSubmit={handleGoToDonate} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: 'auto' }}>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Masukkan username streamer…"
+                  value={donateTarget}
+                  onChange={(e) => setDonateTarget(e.target.value)}
+                  required
+                  style={{ fontSize: '0.9rem' }}
+                />
+                <button type="submit" className="btn-primary" style={{ background: 'linear-gradient(90deg, #10b981, #059669)', justifyContent: 'center' }}>
+                  <ExternalLink size={16} /> Buka Halaman Donasi
+                </button>
+              </form>
             </div>
           </div>
         </main>
       )}
 
-      {/* Streamer Login View */}
+      {/* ── STREAMER LOGIN ── */}
       {view === 'streamer-login' && (
         <main className="fade-in" style={{ display: 'flex', justifyContent: 'center', marginTop: '30px' }}>
           <div className="glass-card" style={{ width: '100%', maxWidth: '440px', padding: '36px' }}>
-            <h3 style={{ fontSize: '1.35rem', fontWeight: '850', color: '#ffffff', marginBottom: '6px' }}>
+            <h3 style={{ fontSize: '1.35rem', fontWeight: '850', color: '#fff', marginBottom: '6px' }}>
               {authMode === 'login' ? 'Streamer Sign In' : 'Create Streamer Account'}
             </h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '24px' }}>
               Configure overlay widgets, templates, and webhook triggers.
             </p>
 
-            <form onSubmit={(e) => handleAuthSubmit(e, 'streamer')} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {authMode === 'register' && (
                 <div className="input-group">
                   <label className="input-label">Full Name</label>
@@ -308,7 +276,6 @@ export default function App() {
                 <label className="input-label">Password</label>
                 <input type="password" className="input-field" placeholder="••••••••" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} required />
               </div>
-
               <button type="submit" className="btn-primary" style={{ padding: '14px', width: '100%', justifyContent: 'center' }}>
                 {authMode === 'login' ? 'Sign In as Streamer' : 'Create Streamer Profile'}
               </button>
@@ -318,16 +285,12 @@ export default function App() {
               {authMode === 'login' ? (
                 <span style={{ color: 'var(--text-muted)' }}>
                   Don't have an account?{' '}
-                  <button className="btn-link" style={{ color: '#818cf8', fontWeight: '700' }} onClick={() => setAuthMode('register')}>
-                    Register here
-                  </button>
+                  <button className="btn-link" style={{ color: '#818cf8', fontWeight: '700' }} onClick={() => setAuthMode('register')}>Register here</button>
                 </span>
               ) : (
                 <span style={{ color: 'var(--text-muted)' }}>
                   Already have an account?{' '}
-                  <button className="btn-link" style={{ color: '#818cf8', fontWeight: '700' }} onClick={() => setAuthMode('login')}>
-                    Sign in here
-                  </button>
+                  <button className="btn-link" style={{ color: '#818cf8', fontWeight: '700' }} onClick={() => setAuthMode('login')}>Sign in here</button>
                 </span>
               )}
             </div>
@@ -335,310 +298,229 @@ export default function App() {
         </main>
       )}
 
-      {/* Viewer Login View */}
-      {view === 'viewer-login' && (
-        <main className="fade-in" style={{ display: 'flex', gap: '30px', marginTop: '30px', alignItems: 'stretch' }}>
-          {/* QRIS Mockup Box */}
-          <div className="glass-card" style={{ flex: 1.1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '36px', textAlign: 'center' }}>
-            <h4 style={{ fontSize: '1.15rem', fontWeight: '800', color: '#ffffff', marginBottom: '8px' }}>Mock QRIS Payment Code</h4>
-            <img src={`${BACKEND_URL}/static/qris_mockup.jpg`} alt="QRIS Donation" style={{ width: '100%', maxWidth: '280px', borderRadius: '16px', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)' }} />
-            <div style={{ marginTop: '16px', display: 'flex', gap: '8px', alignItems: 'center', background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '10px 14px', borderRadius: '10px', maxWidth: '380px' }}>
-              <Info size={28} color="#f59e0b" style={{ flexShrink: 0 }} />
-              <p style={{ fontSize: '0.78rem', color: '#fef08a', textAlign: 'left', lineHeight: '1.4' }}>
-                Jika ingin donasi anonimous dan tanpa mengirim pesan bisa langsung lewat qris diatas.
-              </p>
-            </div>
-          </div>
-
-          {/* Viewer Login Box */}
-          <div className="glass-card" style={{ flex: 0.9, padding: '36px' }}>
-            <h3 style={{ fontSize: '1.35rem', fontWeight: '850', color: '#ffffff', marginBottom: '6px' }}>
-              {authMode === 'login' ? 'Viewer Sign In' : 'Create Viewer Account'}
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '24px' }}>
-              Support streamers by generating unique code QRIS alerts.
-            </p>
-
-            <form onSubmit={(e) => handleAuthSubmit(e, 'viewer')} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {authMode === 'register' && (
-                <div className="input-group">
-                  <label className="input-label">Full Name</label>
-                  <input type="text" className="input-field" placeholder="e.g. Jane Doe" value={authName} onChange={(e) => setAuthName(e.target.value)} required />
-                </div>
-              )}
-              <div className="input-group">
-                <label className="input-label">Viewer Username</label>
-                <input type="text" className="input-field" placeholder="username" value={authUsername} onChange={(e) => setAuthUsername(e.target.value)} required />
-              </div>
-              <div className="input-group">
-                <label className="input-label">Password</label>
-                <input type="password" className="input-field" placeholder="••••••••" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} required />
-              </div>
-
-              <button type="submit" className="btn-primary" style={{ padding: '14px', width: '100%', justifyContent: 'center', background: 'linear-gradient(90deg, #10b981, #059669)' }}>
-                {authMode === 'login' ? 'Sign In as Viewer' : 'Create Viewer Profile'}
-              </button>
-            </form>
-
-            <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '0.85rem' }}>
-              {authMode === 'login' ? (
-                <span style={{ color: 'var(--text-muted)' }}>
-                  Don't have an account?{' '}
-                  <button className="btn-link" style={{ color: '#34d399', fontWeight: '700' }} onClick={() => setAuthMode('register')}>
-                    Register here
-                  </button>
-                </span>
-              ) : (
-                <span style={{ color: 'var(--text-muted)' }}>
-                  Already have an account?{' '}
-                  <button className="btn-link" style={{ color: '#34d399', fontWeight: '700' }} onClick={() => setAuthMode('login')}>
-                    Sign in here
-                  </button>
-                </span>
-              )}
-            </div>
-          </div>
-        </main>
-      )}
-
-      {/* Authenticated Dashboard */}
+      {/* ── STREAMER DASHBOARD ── */}
       {view === 'dashboard' && user && (
         <main className="fade-in">
-          {user.role === 'streamer' ? (
-            // Streamer Dashboard View
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              {/* Webhook Configuration Card */}
-              <div className="glass-card" style={{ padding: '24px', border: '1px solid rgba(245, 158, 11, 0.25)', background: 'rgba(15, 23, 42, 0.6)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justify: 'center' }}>
-                      <Shield size={20} color="#f59e0b" />
-                    </div>
-                    <div>
-                      <h4 style={{ fontSize: '1rem', fontWeight: '800', color: '#ffffff' }}>Your Payment Verification Webhook URL</h4>
-                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        Use this key to match transactions in donations table and display alerts on OBS overlay.
-                      </p>
-                    </div>
-                  </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
-                  <button className="btn-secondary" onClick={() => handleCopyWebhookUrl(user.webhook_key)} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
-                    {copiedWebhookUrl ? <Check size={14} color="#34d399" /> : <Copy size={14} />}
-                    <span>{copiedWebhookUrl ? 'Webhook URL Copied!' : 'Copy Webhook URL'}</span>
-                  </button>
-                </div>
-
-                <div style={{ marginTop: '14px', background: 'rgba(0, 0, 0, 0.3)', padding: '10px 14px', borderRadius: '8px' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: '#fef08a', wordBreak: 'break-all' }}>
-                    {`${BACKEND_URL}/api/v1/webhooks/donation?key=${user.webhook_key}`}
-                  </span>
-                </div>
-              </div>
-
-              {/* Projects Header & Overlay Templates */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#ffffff' }}>Overlay Layouts</h2>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Add projects, overlay URLs, and templates.</p>
-                </div>
-                <button className="btn-primary" onClick={() => setIsCreateOpen(true)}>
-                  <Plus size={18} />
-                  <span>Create Project</span>
-                </button>
-              </div>
-
-              {projects.length === 0 ? (
-                <div className="glass-card" style={{ padding: '50px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                  <Tv size={48} color="var(--text-muted)" />
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: '#ffffff' }}>No Projects Created</h3>
-                  <button className="btn-primary" onClick={() => setIsCreateOpen(true)}>Create Project</button>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {projects.map((proj) => (
-                    <ProjectCard
-                      key={proj.id}
-                      project={proj}
-                      onOpenTriggerAlert={(p) => setTargetProjectForAlert(p)}
-                      onOpenEditTemplate={(p) => setTargetProjectForEdit(p)}
-                      onDeleteSuccess={fetchProjects}
-                      showToast={showToast}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            // Viewer Dashboard / Donation Form View
-            <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '24px', alignItems: 'stretch' }}>
-              {/* Donation Form */}
-              <div className="glass-card" style={{ padding: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justify: 'center' }}>
-                    <Landmark size={22} color="#34d399" />
+            {/* Webhook URL Card */}
+            <div className="glass-card" style={{ padding: '24px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <div style={cardIcon('#f59e0b', 0.15)}>
+                    <Shield size={20} color="#f59e0b" />
                   </div>
                   <div>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#ffffff' }}>Kirim Donasi</h3>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Generate random 3-digit kode unik pembayaran QRIS</p>
+                    <h4 style={{ fontSize: '1rem', fontWeight: '800', color: '#fff' }}>Payment Verification Webhook URL</h4>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Callback endpoint for donation updates. Authenticated via headers.</p>
                   </div>
                 </div>
-
-                <form onSubmit={handleCreateDonation} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div className="input-group">
-                    <label className="input-label">Streamer Username (Penerima)</label>
-                    <div style={{ position: 'relative' }}>
-                      <input
-                        type="text"
-                        className="input-field"
-                        placeholder="e.g. streamer123"
-                        value={donationStreamer}
-                        onChange={(e) => setDonationStreamer(e.target.value)}
-                        required
-                        style={{ paddingLeft: '40px' }}
-                      />
-                      <User size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '14px', top: '14px' }} />
-                    </div>
-                  </div>
-
-                  <div className="input-group">
-                    <label className="input-label">Nominal Donasi (Rupiah)</label>
-                    <select
-                      className="input-field"
-                      value={donationAmount}
-                      onChange={(e) => setDonationAmount(e.target.value)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <option value="10000">Rp 10.000</option>
-                      <option value="25000">Rp 25.000</option>
-                      <option value="50000">Rp 50.000</option>
-                      <option value="100000">Rp 100.000</option>
-                      <option value="250000">Rp 250.000</option>
-                      <option value="500000">Rp 500.000</option>
-                      <option value="1000000">Rp 1.000.000</option>
-                      <option value="custom">Nominal Kustom (Ketik Sendiri)</option>
-                    </select>
-                  </div>
-
-                  {donationAmount === 'custom' && (
-                    <div className="input-group fade-in">
-                      <label className="input-label">Nominal Kustom (Min Rp 5.000, Max Rp 10M)</label>
-                      <input
-                        type="number"
-                        className="input-field"
-                        placeholder="e.g. 75000"
-                        min="5000"
-                        max="10000000"
-                        value={customAmount}
-                        onChange={(e) => setCustomAmount(e.target.value)}
-                        required
-                      />
-                    </div>
-                  )}
-
-                  <div className="input-group">
-                    <label className="input-label">Nama Pengirim (Sender Name)</label>
-                    <input
-                      type="text"
-                      className="input-field"
-                      placeholder="e.g. Jane Donor"
-                      value={donationSender}
-                      onChange={(e) => setDonationSender(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="input-group">
-                    <label className="input-label">Pesan Donasi</label>
-                    <textarea
-                      className="input-field"
-                      placeholder="e.g. Keep up the awesome stream!"
-                      rows={3}
-                      value={donationMessage}
-                      onChange={(e) => setDonationMessage(e.target.value)}
-                    />
-                  </div>
-
-                  <button type="submit" className="btn-primary" style={{ padding: '14px', width: '100%', justifyContent: 'center', background: 'linear-gradient(90deg, #10b981, #059669)' }}>
-                    Generate Kode Unik Donasi
-                  </button>
-                </form>
+                <button className="btn-secondary" onClick={handleCopyWebhookUrl} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+                  {copiedWebhookUrl ? <Check size={14} color="#34d399" /> : <Copy size={14} />}
+                  <span>{copiedWebhookUrl ? 'Copied!' : 'Copy Webhook URL'}</span>
+                </button>
+              </div>
+              <div style={{ marginTop: '12px', background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: '8px' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: '#fef08a', wordBreak: 'break-all' }}>
+                  {`${BACKEND_URL}/api/v1/webhooks/donation`}
+                </span>
               </div>
 
-              {/* QRIS Transfer & Webhook Simulator */}
-              <div className="glass-card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '20px' }}>
-                {createdDonation ? (
-                  <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', width: '100%' }}>
-                    <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '10px 16px', borderRadius: '10px', width: '100%' }}>
-                      <span style={{ fontSize: '0.85rem', color: '#34d399', fontWeight: '800' }}>STATUS: {createdDonation.status.toUpperCase()}</span>
-                    </div>
-
-                    <img src={`${BACKEND_URL}/static/qris_mockup.jpg`} alt="QRIS Donation" style={{ width: '100%', maxWidth: '240px', borderRadius: '12px' }} />
-
-                    <div>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Silakan transfer tepat senilai:</p>
-                      <h2 style={{ fontSize: '2.2rem', fontWeight: '850', color: '#fef08a', margin: '4px 0' }}>
-                        Rp {createdDonation.total_amount.toLocaleString('id-ID')}
-                      </h2>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        (Nominal: Rp {createdDonation.amount.toLocaleString('id-ID')} + Kode Unik: Rp {createdDonation.unique_code})
-                      </p>
-                    </div>
-
-                    {createdDonation.status === 'pending' ? (
+              {/* Webhook Key (Header Auth) */}
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.78rem', fontWeight: '750', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Header X-Suporter-Key</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.88rem', color: '#fff', letterSpacing: !showWebhookKey ? '0.15em' : 'normal' }}>
+                        {showWebhookKey ? user.webhook_key : '••••••••••••••••••••••••••••••••'}
+                      </span>
                       <button
-                        className="btn-primary"
-                        onClick={simulateWebhookTrigger}
-                        disabled={simulatingWebhook}
-                        style={{ width: '100%', justifyContent: 'center', background: 'linear-gradient(90deg, #eab308, #ca8a04)' }}
+                        onClick={() => setShowWebhookKey(!showWebhookKey)}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
+                        title={showWebhookKey ? 'Hide Webhook Key' : 'Show Webhook Key'}
                       >
-                        <Landmark size={18} />
-                        <span>{simulatingWebhook ? 'Memverifikasi...' : 'Simulasikan Pembayaran QRIS (Webhook Callback)'}</span>
+                        {showWebhookKey ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
-                    ) : (
-                      <div style={{ background: 'rgba(52, 211, 153, 0.15)', border: '1px solid rgba(52, 211, 153, 0.3)', color: '#34d399', padding: '12px 18px', borderRadius: '10px', fontSize: '0.9rem', fontWeight: '700', width: '100%' }}>
-                        🎉 Pembayaran Berhasil Terverifikasi! Alert terkirim ke OBS overlay.
-                      </div>
-                    )}
+                    </div>
                   </div>
-                ) : (
-                  <div style={{ color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                    <Landmark size={48} />
-                    <h4 style={{ color: '#ffffff', fontWeight: '700' }}>Instructions</h4>
-                    <p style={{ fontSize: '0.85rem', maxWidth: '300px', lineHeight: 1.5 }}>
-                      Input the target streamer, name, amount, and message. The app will generate a 3-digit verification identifier code to identify payments.
-                    </p>
-                  </div>
-                )}
+                  <button className="btn-secondary" onClick={() => handleCopyWebhookKey(user.webhook_key)} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+                    {copiedWebhookKey ? <Check size={14} color="#34d399" /> : <Copy size={14} />}
+                    <span>{copiedWebhookKey ? 'Copied Key!' : 'Copy Key'}</span>
+                  </button>
+                </div>
+                <div style={{ marginTop: '10px', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                  ℹ️ Webhook calls must include the header <code style={{ color: '#fef08a', fontFamily: 'var(--font-mono)' }}>X-Suporter-Key</code> with this key and <code style={{ color: '#fef08a', fontFamily: 'var(--font-mono)' }}>X-Suporter-Signature</code> containing the HMAC-SHA256 signature.
+                </div>
               </div>
             </div>
-          )}
+
+            {/* QRIS URL Settings Card */}
+            <div className="glass-card" style={{ padding: '24px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                  <div style={cardIcon('#10b981', 0.15)}>
+                    <Landmark size={20} color="#34d399" />
+                  </div>
+                  <div>
+                    <h4 style={{ fontSize: '1rem', fontWeight: '800', color: '#fff' }}>QRIS Image URL</h4>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      Ditampilkan pada halaman donasi Anda di{' '}
+                      <a href={`/donate/${user.username}`} target="_blank" rel="noreferrer" style={{ color: '#34d399', textDecoration: 'underline' }}>
+                        /donate/{user.username}
+                      </a>
+                    </p>
+                  </div>
+                </div>
+                {!editingQRIS ? (
+                  <button className="btn-secondary" onClick={() => { setEditingQRIS(true); setQrisInput(user.qris_url || ''); }} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+                    <Edit3 size={14} /> Edit QRIS URL
+                  </button>
+                ) : (
+                  <button className="btn-secondary" onClick={() => setEditingQRIS(false)} style={{ padding: '8px 14px', fontSize: '0.85rem' }}>
+                    <X size={14} /> Batal
+                  </button>
+                )}
+              </div>
+
+              {editingQRIS ? (
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <input
+                    type="url"
+                    className="input-field"
+                    placeholder="https://i.imgur.com/your-qris.jpg"
+                    value={qrisInput}
+                    onChange={(e) => setQrisInput(e.target.value)}
+                    style={{ flex: 1, minWidth: '240px' }}
+                  />
+                  <button
+                    className="btn-primary"
+                    onClick={handleSaveQRIS}
+                    disabled={savingQRIS}
+                    style={{ padding: '10px 20px', background: 'linear-gradient(90deg,#10b981,#059669)', whiteSpace: 'nowrap' }}
+                  >
+                    <Save size={14} />
+                    <span>{savingQRIS ? 'Menyimpan…' : 'Simpan'}</span>
+                  </button>
+                </div>
+              ) : (
+                <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {user.qris_url ? (
+                    <>
+                      <img src={user.qris_url} alt="QRIS Preview" style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: '#34d399', wordBreak: 'break-all' }}>{user.qris_url}</span>
+                    </>
+                  ) : (
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      Belum ada URL QRIS. Klik "Edit QRIS URL" untuk menambahkan.
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Donation page link */}
+              <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Heart size={14} color="#34d399" />
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  Bagikan link donasi kamu:{' '}
+                  <a
+                    href={`/donate/${user.username}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: '#34d399', fontWeight: '700', textDecoration: 'none' }}
+                  >
+                    {window.location.origin}/donate/{user.username}
+                  </a>
+                </span>
+              </div>
+            </div>
+
+            {/* Projects Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#fff' }}>Overlay Layouts</h2>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Add projects, overlay URLs, and templates.</p>
+              </div>
+              <button className="btn-primary" onClick={() => setIsCreateOpen(true)}>
+                <Plus size={18} /><span>Create Project</span>
+              </button>
+            </div>
+
+            {projects.length === 0 ? (
+              <div className="glass-card" style={{ padding: '50px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                <Tv size={48} color="var(--text-muted)" />
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: '#fff' }}>No Projects Created</h3>
+                <button className="btn-primary" onClick={() => setIsCreateOpen(true)}>Create Project</button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {projects.map((proj) => (
+                  <ProjectCard
+                    key={proj.id}
+                    project={proj}
+                    onOpenTriggerAlert={(p) => setTargetProjectForAlert(p)}
+                    onOpenEditTemplate={(p) => setTargetProjectForEdit(p)}
+                    onDeleteSuccess={fetchProjects}
+                    showToast={showToast}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </main>
       )}
 
       {/* Modals */}
-      <CreateProjectModal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onSuccess={fetchProjects}
-        showToast={showToast}
-      />
-
-      <EditTemplateModal
-        project={targetProjectForEdit}
-        isOpen={!!targetProjectForEdit}
-        onClose={() => setTargetProjectForEdit(null)}
-        onSuccess={fetchProjects}
-        showToast={showToast}
-      />
-
-      <CustomAlertModal
-        project={targetProjectForAlert}
-        isOpen={!!targetProjectForAlert}
-        onClose={() => setTargetProjectForAlert(null)}
-        showToast={showToast}
-      />
-
+      <CreateProjectModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSuccess={fetchProjects} showToast={showToast} />
+      <EditTemplateModal project={targetProjectForEdit} isOpen={!!targetProjectForEdit} onClose={() => setTargetProjectForEdit(null)} onSuccess={fetchProjects} showToast={showToast} />
+      <CustomAlertModal project={targetProjectForAlert} isOpen={!!targetProjectForAlert} onClose={() => setTargetProjectForAlert(null)} showToast={showToast} />
       <Toast message={toastMsg} />
     </div>
   );
+}
+
+// ── Shared style helpers ────────────────────────────────────────────────────
+const hdr = {
+  bar: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '16px 24px',
+    background: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(12px)',
+    border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px',
+    marginBottom: '24px',
+  },
+  brand: { display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' },
+  title: {
+    fontSize: '1.25rem', fontWeight: '850',
+    background: 'linear-gradient(90deg, #10b981, #3b82f6)',
+    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+  },
+};
+
+const badge = {
+  display: 'inline-flex', padding: '8px 16px', borderRadius: '30px',
+  background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)',
+  color: '#34d399', fontSize: '0.85rem', fontWeight: '700',
+  marginBottom: '16px', gap: '6px', alignItems: 'center',
+};
+
+const card = {
+  padding: '32px', display: 'flex', flexDirection: 'column', gap: '16px',
+  border: '1px solid rgba(99, 102, 241, 0.25)',
+};
+const cardTitle = { fontSize: '1.25rem', fontWeight: '800', color: '#fff', marginBottom: '6px' };
+const cardDesc  = { fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 };
+
+function cardIcon(color, alpha) {
+  return {
+    width: '48px', height: '48px', borderRadius: '14px', flexShrink: 0,
+    background: `rgba(${hexToRgb(color)}, ${alpha})`,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  };
+}
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `${r}, ${g}, ${b}`;
 }

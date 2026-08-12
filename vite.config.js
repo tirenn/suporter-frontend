@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
+    // Enable SPA fallback so /donate/:username works on direct navigation / refresh
+    historyApiFallback: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8080',
@@ -14,7 +16,11 @@ export default defineConfig({
       '/overlay': {
         target: 'http://localhost:8080',
         changeOrigin: true,
-      }
+      },
+      '/static': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
     }
   }
 })

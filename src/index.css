@@ -184,3 +184,31 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #374151;
 }
+
+/* Spin animation for loading indicators */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Inline link button */
+.btn-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-main);
+  font-size: inherit;
+  padding: 0;
+  text-decoration: underline;
+  transition: opacity 0.15s ease;
+}
+
+.btn-link:hover { opacity: 0.75; }
+
+/* input-group without bottom margin (use gap from parent instead) */
+.input-group:last-child { margin-bottom: 0; }
+
+/* Hide Google reCAPTCHA v3 Badge */
+.grecaptcha-badge {
+  visibility: hidden !important;
+}
