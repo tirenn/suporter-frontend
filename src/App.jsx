@@ -36,7 +36,9 @@ export default function App() {
   // Webhook copy
   const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
   const [copiedWebhookKey, setCopiedWebhookKey] = useState(false);
+  const [copiedWebhookSecret, setCopiedWebhookSecret] = useState(false);
   const [showWebhookKey, setShowWebhookKey] = useState(false);
+  const [showWebhookSecret, setShowWebhookSecret] = useState(false);
 
   // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -147,6 +149,14 @@ export default function App() {
       setCopiedWebhookKey(true);
       showToast('📋 Webhook Key copied!');
       setTimeout(() => setCopiedWebhookKey(false), 2000);
+    });
+  }
+
+  function handleCopyWebhookSecret(secret) {
+    navigator.clipboard.writeText(secret).then(() => {
+      setCopiedWebhookSecret(true);
+      showToast('📋 Webhook Secret copied!');
+      setTimeout(() => setCopiedWebhookSecret(false), 2000);
     });
   }
 
@@ -326,8 +336,10 @@ export default function App() {
                 </span>
               </div>
 
-              {/* Webhook Key (Header Auth) */}
-              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              {/* Webhook Key & Secret (Header Auth) */}
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
+                {/* X-Suporter-Key */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
                   <div>
                     <span style={{ fontSize: '0.78rem', fontWeight: '750', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Header X-Suporter-Key</span>
@@ -349,8 +361,32 @@ export default function App() {
                     <span>{copiedWebhookKey ? 'Copied Key!' : 'Copy Key'}</span>
                   </button>
                 </div>
-                <div style={{ marginTop: '10px', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                  ℹ️ Webhook calls must include the header <code style={{ color: '#fef08a', fontFamily: 'var(--font-mono)' }}>X-Suporter-Key</code> with this key and <code style={{ color: '#fef08a', fontFamily: 'var(--font-mono)' }}>X-Suporter-Signature</code> containing the HMAC-SHA256 signature.
+
+                {/* X-Suporter-Secret (HMAC secret) */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.78rem', fontWeight: '750', textTransform: 'uppercase', color: 'var(--text-muted)' }}>HMAC Webhook Secret</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.88rem', color: '#fff', letterSpacing: !showWebhookSecret ? '0.15em' : 'normal' }}>
+                        {showWebhookSecret ? user.webhook_secret : '••••••••••••••••••••••••••••••••'}
+                      </span>
+                      <button
+                        onClick={() => setShowWebhookSecret(!showWebhookSecret)}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
+                        title={showWebhookSecret ? 'Hide Webhook Secret' : 'Show Webhook Secret'}
+                      >
+                        {showWebhookSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                  <button className="btn-secondary" onClick={() => handleCopyWebhookSecret(user.webhook_secret)} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+                    {copiedWebhookSecret ? <Check size={14} color="#34d399" /> : <Copy size={14} />}
+                    <span>{copiedWebhookSecret ? 'Copied Secret!' : 'Copy Secret'}</span>
+                  </button>
+                </div>
+
+                <div style={{ marginTop: '4px', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                  ℹ️ Webhook calls must include the header <code style={{ color: '#fef08a', fontFamily: 'var(--font-mono)' }}>X-Suporter-Key</code> with your key, and the header <code style={{ color: '#fef08a', fontFamily: 'var(--font-mono)' }}>X-Suporter-Signature</code> containing the HMAC-SHA256 signature calculated using your user-specific Webhook Secret.
                 </div>
               </div>
             </div>
