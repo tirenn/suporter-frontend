@@ -3,7 +3,7 @@ import { BACKEND_URL, api, executeRecaptcha, getStoredToken, getStoredUser, setS
 import {
   Tv, Plus, Sparkles, Shield, ArrowLeft, Landmark,
   Copy, Check, Heart, ExternalLink, Edit3, Save, X,
-  Eye, EyeOff,
+  Eye, EyeOff, AlertTriangle,
 } from 'lucide-react';
 import ProjectCard from './components/ProjectCard';
 import CreateProjectModal from './components/CreateProjectModal';
@@ -37,6 +37,10 @@ export default function App() {
   const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
   const [copiedWebhookKey, setCopiedWebhookKey] = useState(false);
   const [showWebhookKey, setShowWebhookKey] = useState(false);
+  const [zoomedQRIS, setZoomedQRIS] = useState(false);
+  const [regeneratingKey, setRegeneratingKey] = useState(false);
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -85,6 +89,29 @@ export default function App() {
 
   async function handleAuthSubmit(e) {
     e.preventDefault();
+    
+    if (authMode === 'register') {
+      if (authName.trim().length < 3) {
+        showToast('⚠️ Nama lengkap harus minimal 3 karakter');
+        return;
+      }
+      if (authUsername.trim().length < 3) {
+        showToast('⚠️ Username harus minimal 3 karakter');
+        return;
+      }
+      if (authPassword.length < 8) {
+        showToast('⚠️ Password harus minimal 8 karakter');
+        return;
+      }
+      if (!/[A-Z]/.test(authPassword)) {
+        showToast('⚠️ Password harus mengandung minimal satu huruf kapital');
+        return;
+      }
+      if (!/[!@#$%^&*(),.?":{}|<>_+\-=\[\]\\\/~`]/.test(authPassword)) {
+        showToast('⚠️ Password harus mengandung minimal satu simbol/karakter khusus');
+        return;
+      }
+    }
     
     try {
       const token = await executeRecaptcha(authMode);
@@ -148,6 +175,21 @@ export default function App() {
       showToast('📋 Webhook Key copied!');
       setTimeout(() => setCopiedWebhookKey(false), 2000);
     });
+  }
+
+  async function executeWebhookKeyRegen() {
+    setShowRegenConfirm(false);
+    setRegeneratingKey(true);
+    try {
+      const updatedUser = await api.regenerateWebhookKey();
+      setStoredUser(updatedUser);
+      setUser(updatedUser);
+      showToast("✅ Webhook Key berhasil diperbarui!");
+    } catch (err) {
+      showToast("❌ " + (err.message || "Gagal memperbarui Webhook Key"));
+    } finally {
+      setRegeneratingKey(false);
+    }
   }
 
   function handleGoToDonate(e) {
@@ -274,7 +316,34 @@ export default function App() {
               </div>
               <div className="input-group">
                 <label className="input-label">Password</label>
-                <input type="password" className="input-field" placeholder="••••••••" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} required />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input 
+                    type={showPassword ? 'text' : 'password'} 
+                    className="input-field" 
+                    placeholder="••••••••" 
+                    value={authPassword} 
+                    onChange={(e) => setAuthPassword(e.target.value)} 
+                    required 
+                    style={{ paddingRight: '46px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '4px'
+                    }}
+                  >
+                    {showPassword ? <EyeOff size={18} color="var(--text-muted)" /> : <Eye size={18} color="var(--text-muted)" />}
+                  </button>
+                </div>
               </div>
               <button type="submit" className="btn-primary" style={{ padding: '14px', width: '100%', justifyContent: 'center' }}>
                 {authMode === 'login' ? 'Sign In as Streamer' : 'Create Streamer Profile'}
@@ -285,12 +354,12 @@ export default function App() {
               {authMode === 'login' ? (
                 <span style={{ color: 'var(--text-muted)' }}>
                   Don't have an account?{' '}
-                  <button className="btn-link" style={{ color: '#818cf8', fontWeight: '700' }} onClick={() => setAuthMode('register')}>Register here</button>
+                  <button className="btn-link" style={{ color: '#818cf8', fontWeight: '700' }} onClick={() => { setAuthMode('register'); setShowPassword(false); }}>Register here</button>
                 </span>
               ) : (
                 <span style={{ color: 'var(--text-muted)' }}>
                   Already have an account?{' '}
-                  <button className="btn-link" style={{ color: '#818cf8', fontWeight: '700' }} onClick={() => setAuthMode('login')}>Sign in here</button>
+                  <button className="btn-link" style={{ color: '#818cf8', fontWeight: '700' }} onClick={() => { setAuthMode('login'); setShowPassword(false); }}>Sign in here</button>
                 </span>
               )}
             </div>
@@ -302,6 +371,17 @@ export default function App() {
       {view === 'dashboard' && user && (
         <main className="fade-in">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {!user.is_active && (
+              <div className="glass-card" style={{ padding: '16px 24px', border: '1px solid rgba(239, 68, 68, 0.4)', background: 'rgba(239, 68, 68, 0.08)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+                <div>
+                  <h5 style={{ fontWeight: '800', color: '#fca5a5', margin: 0, fontSize: '0.9rem' }}>Akun Belum Aktif</h5>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: '4px 0 0' }}>
+                    Silakan hubungi support/admin untuk mengaktifkan akun Anda agar dapat menerima donasi dari pemirsa.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Webhook URL Card */}
             <div className="glass-card" style={{ padding: '24px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
@@ -344,10 +424,20 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-                  <button className="btn-secondary" onClick={() => handleCopyWebhookKey(user.webhook_key)} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
-                    {copiedWebhookKey ? <Check size={14} color="#34d399" /> : <Copy size={14} />}
-                    <span>{copiedWebhookKey ? 'Copied Key!' : 'Copy Key'}</span>
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn-secondary" onClick={() => handleCopyWebhookKey(user.webhook_key)} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+                      {copiedWebhookKey ? <Check size={14} color="#34d399" /> : <Copy size={14} />}
+                      <span>{copiedWebhookKey ? 'Copied Key!' : 'Copy Key'}</span>
+                    </button>
+                    <button 
+                      className="btn-secondary" 
+                      onClick={() => setShowRegenConfirm(true)}
+                      disabled={regeneratingKey}
+                      style={{ padding: '8px 16px', fontSize: '0.85rem', borderColor: 'rgba(239, 68, 68, 0.4)', color: '#fca5a5' }}
+                    >
+                      <span>{regeneratingKey ? 'Regenerating...' : 'Regenerate Key'}</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ marginTop: '10px', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
@@ -405,16 +495,30 @@ export default function App() {
                   </button>
                 </div>
               ) : (
-                <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {user.qris_url ? (
-                    <>
-                      <img src={user.qris_url} alt="QRIS Preview" style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }} onError={(e) => { e.target.style.display = 'none'; }} />
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: '#34d399', wordBreak: 'break-all' }}>{user.qris_url}</span>
-                    </>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {!user.qris_url ? (
+                    <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px dashed rgba(239, 68, 68, 0.3)', padding: '16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+                      <span style={{ fontSize: '0.85rem', color: '#fca5a5' }}>
+                        <strong>QRIS URL Kosong:</strong> Halaman donasi Anda tidak dapat menampilkan QRIS. Klik "Edit QRIS URL" untuk menambahkan.
+                      </span>
+                    </div>
                   ) : (
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                      Belum ada URL QRIS. Klik "Edit QRIS URL" untuk menambahkan.
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: '#34d399', wordBreak: 'break-all' }}>{user.qris_url}</span>
+                      </div>
+                      <div style={{ alignSelf: 'flex-start', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: '600' }}>QRIS Image Preview (click to zoom):</p>
+                        <img 
+                           src={user.qris_url} 
+                           alt="QRIS Preview" 
+                           style={{ width: '160px', height: '160px', objectFit: 'contain', borderRadius: '8px', background: '#fff', padding: '6px', cursor: 'zoom-in' }} 
+                           onClick={() => setZoomedQRIS(true)}
+                           onError={(e) => { e.target.style.display = 'none'; }} 
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
@@ -475,6 +579,89 @@ export default function App() {
       <CreateProjectModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onSuccess={fetchProjects} showToast={showToast} />
       <EditTemplateModal project={targetProjectForEdit} isOpen={!!targetProjectForEdit} onClose={() => setTargetProjectForEdit(null)} onSuccess={fetchProjects} showToast={showToast} />
       <CustomAlertModal project={targetProjectForAlert} isOpen={!!targetProjectForAlert} onClose={() => setTargetProjectForAlert(null)} showToast={showToast} />
+      
+      {/* QRIS Zoom Modal */}
+      {zoomedQRIS && (
+        <div 
+          onClick={() => setZoomedQRIS(false)}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, cursor: 'zoom-out'
+          }}
+        >
+          <div 
+            style={{ position: 'relative', background: '#fff', padding: '16px', borderRadius: '16px', maxWidth: '90%', maxHeight: '90%', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img 
+              src={user.qris_url} 
+              alt="QRIS Enlarged" 
+              style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px', background: '#fff' }} 
+            />
+            <p style={{ color: '#0f172a', fontSize: '0.85rem', fontWeight: '750', marginTop: '12px', textAlign: 'center' }}>
+              QRIS @{user.username}
+            </p>
+            <button 
+              onClick={() => setZoomedQRIS(false)}
+              className="btn-secondary"
+              style={{ marginTop: '12px', padding: '6px 14px', borderColor: '#cbd5e1', color: '#334155' }}
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Webhook Key Regenerate Confirmation Modal */}
+      {showRegenConfirm && (
+        <div 
+          onClick={() => setShowRegenConfirm(false)}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div 
+            style={{ 
+              background: '#1e293b', padding: '28px', borderRadius: '16px', 
+              maxWidth: '440px', width: '90%', display: 'flex', flexDirection: 'column', gap: '16px',
+              border: '1px solid rgba(239, 68, 68, 0.3)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
+            }} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#fca5a5' }}>
+              <AlertTriangle size={24} />
+              <h4 style={{ fontSize: '1.15rem', fontWeight: '800', margin: 0 }}>Regenerate Webhook Key?</h4>
+            </div>
+            
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5, margin: 0 }}>
+              Kunci webhook lama Anda akan <strong>segera tidak aktif</strong>. Seluruh integrasi eksternal (misalnya server payment gateway atau bank forwarder) tidak akan bisa mengirimkan update pembayaran donasi ke sistem Overlay live streaming Anda sampai Anda memperbaruinya dengan kunci baru.
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '8px', justifyContent: 'flex-end' }}>
+              <button 
+                className="btn-secondary" 
+                onClick={() => setShowRegenConfirm(false)}
+                style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+              >
+                Batal
+              </button>
+              <button 
+                className="btn-primary" 
+                onClick={executeWebhookKeyRegen}
+                style={{ padding: '8px 16px', fontSize: '0.85rem', background: 'linear-gradient(90deg, #ef4444, #dc2626)' }}
+              >
+                Ya, Regenerate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Toast message={toastMsg} />
     </div>
   );

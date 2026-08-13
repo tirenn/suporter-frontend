@@ -1,5 +1,4 @@
 export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8080';
-export const JWT_SECRET_KEY = import.meta.env.VITE_JWT_SECRET_KEY || 'suporter-super-secret-jwt-key-2026';
 export const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';
 
 const API_BASE = `${BACKEND_URL}/api/v1`;
@@ -90,6 +89,9 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ qris_url: qrisUrl }),
     }),
+
+  regenerateWebhookKey: () =>
+    request('/profile/webhook-key', { method: 'PUT' }),
 
   // Projects (1 Project = 1 OBS Template Overlay)
   getProjects: () => request('/projects', { method: 'GET' }),

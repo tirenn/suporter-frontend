@@ -300,7 +300,7 @@ export default function DonatePage({ streamerUsername }) {
           </div>
           <div style={styles.infoBox}>
             <p style={{ fontSize: '0.78rem', color: '#fef08a', lineHeight: 1.5 }}>
-              💡 Donasi anonim? Langsung scan QRIS di atas tanpa isi form.
+              💡 Jika donasi langsung tanpa membuat kode unik atau nominal donasi tidak sesuai, pesan Anda tidak akan muncul di live streaming.
             </p>
           </div>
         </div>

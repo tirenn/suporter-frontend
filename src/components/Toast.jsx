@@ -6,8 +6,9 @@ export default function Toast({ message }) {
   return (
     <div style={{
       position: 'fixed',
-      bottom: '32px',
-      right: '32px',
+      top: '32px',
+      left: '50%',
+      transform: 'translate(-50%, 0)',
       background: 'linear-gradient(135deg, #1e293b, #0f172a)',
       border: '1px solid rgba(255, 255, 255, 0.15)',
       color: '#ffffff',
@@ -20,7 +21,7 @@ export default function Toast({ message }) {
       display: 'flex',
       alignItems: 'center',
       gap: '10px',
-      animation: 'fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+      animation: 'toastFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards'
     }}>
       <span>{message}</span>
     </div>

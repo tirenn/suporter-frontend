@@ -165,6 +165,11 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes toastFadeIn {
+  from { opacity: 0; transform: translate(-50%, -10px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
 .fade-in {
   animation: fadeIn 0.35s ease-out forwards;
 }
@@ -211,4 +216,10 @@ body {
 /* Hide Google reCAPTCHA v3 Badge */
 .grecaptcha-badge {
   visibility: hidden !important;
+}
+
+/* Hide MS Edge Default Password Reveal button */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
 }
