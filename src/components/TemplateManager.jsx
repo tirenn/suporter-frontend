@@ -40,10 +40,50 @@ export default function TemplateManager({ project, isOpen, onClose, onOpenTrigge
     setSelectedTemplateId(null);
     setName('');
     setEventType('donation');
-    setHtmlTemplate('<div class="my-alert">\n  <h2>💰 {{name}} donated {{amount}}</h2>\n  <p>{{description}}</p>\n</div>');
-    setCssStyle('.my-alert { background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 20px; border-radius: 12px; }');
-    setFieldsStr('name, amount, description');
-    setDuration(5000);
+    setHtmlTemplate(`<div class="cartoon-alert-container">
+  <div class="cartoon-header">
+    <div class="cartoon-sparkle">💥</div>
+    <div class="cartoon-badge">Suporter datang!!!</div>
+    <div class="cartoon-sparkle">⚡</div>
+  </div>
+  <div class="cartoon-hero">
+    <span class="cartoon-name">{{name}}</span>
+    <span class="cartoon-action">mengirimkan</span>
+    <span class="cartoon-amount">Rp {{amount}}</span>
+  </div>
+  <div class="cartoon-message-bubble">
+    <p class="cartoon-message">{{message}}</p>
+  </div>
+</div>`);
+    setCssStyle(`@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800&family=Nunito:wght@700;800;900&display=swap');
+
+.cartoon-alert-container {
+  background: linear-gradient(135deg, #FFF066 0%, #FFB800 50%, #FF8A00 100%);
+  border: 4px solid #1E293B;
+  border-radius: 24px;
+  padding: 24px 28px;
+  max-width: 480px;
+  box-shadow: 6px 8px 0px #0F172A, 0 20px 40px rgba(0, 0, 0, 0.25);
+  font-family: 'Fredoka', 'Nunito', sans-serif;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  animation: cartoonPopIn 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.cartoon-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
+.cartoon-sparkle { font-size: 1.4rem; animation: cartoonBounce 0.8s infinite alternate ease-in-out; }
+.cartoon-badge { background: #FF4757; color: #FFFFFF; border: 3px solid #1E293B; border-radius: 50px; padding: 4px 18px; font-size: 1rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; box-shadow: 3px 3px 0px #1E293B; transform: rotate(-1deg); }
+.cartoon-hero { font-size: 1.35rem; font-weight: 800; color: #1E293B; line-height: 1.35; margin-bottom: 14px; text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.6); }
+.cartoon-name { color: #2E5BFF; font-weight: 900; text-decoration: underline wavy #FF4757; padding: 0 4px; }
+.cartoon-action { color: #1E293B; font-weight: 700; margin: 0 4px; }
+.cartoon-amount { color: #059669; background: #FFFFFF; border: 2.5px solid #1E293B; border-radius: 12px; padding: 2px 10px; font-weight: 900; display: inline-block; box-shadow: 2px 3px 0px #1E293B; margin-left: 4px; }
+.cartoon-message-bubble { background: #FFFFFF; border: 3.5px solid #1E293B; border-radius: 18px; padding: 12px 18px; box-shadow: 4px 4px 0px #1E293B; position: relative; margin-top: 6px; }
+.cartoon-message { font-family: 'Nunito', sans-serif; font-size: 1.05rem; font-weight: 800; color: #1E293B; line-height: 1.4; margin: 0; word-break: break-word; }
+@keyframes cartoonPopIn { 0% { transform: scale(0.4) rotate(-8deg); opacity: 0; } 70% { transform: scale(1.06) rotate(2deg); opacity: 1; } 100% { transform: scale(1) rotate(0deg); opacity: 1; } }
+@keyframes cartoonBounce { from { transform: translateY(0) scale(1); } to { transform: translateY(-5px) scale(1.15); } }`);
+    setFieldsStr('name, amount, message');
+    setDuration(7000);
   }
 
   function handleEdit(t) {

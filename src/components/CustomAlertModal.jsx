@@ -4,7 +4,7 @@ import { Zap, X, Sparkles } from 'lucide-react';
 
 export default function CustomAlertModal({ project, isOpen, onClose, showToast }) {
   const [name, setName] = useState('Alex Streamer');
-  const [amount, setAmount] = useState('$50.00');
+  const [amount, setAmount] = useState('50.000');
   const [message, setMessage] = useState('Keep up the awesome stream!');
   const [duration, setDuration] = useState(7000);
   const [loading, setLoading] = useState(false);
@@ -107,7 +107,7 @@ export default function CustomAlertModal({ project, isOpen, onClose, showToast }
               className="input-field"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="e.g. $50.00"
+              placeholder="e.g. 50.000"
               required
             />
           </div>
