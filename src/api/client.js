@@ -83,6 +83,10 @@ export const api = {
   getStreamerProfile: (username) =>
     request(`/streamers/${encodeURIComponent(username)}`, { method: 'GET' }),
 
+  // Streamer profile (authenticated)
+  getProfile: () =>
+    request('/profile', { method: 'GET' }),
+
   // Update QRIS URL (requires streamer auth)
   updateProfile: (qrisUrl) =>
     request('/profile', {

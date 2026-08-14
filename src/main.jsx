@@ -7,15 +7,15 @@ import './index.css';
 // ---------------------------------------------------------------------------
 // Simple client-side URL router — no external library needed.
 // Routes:
-//   /donate/:username  → DonatePage (public, no auth)
-//   everything else    → App (streamer dashboard + landing)
+//   /suporter/:username  → DonatePage (public, no auth)
+//   everything else      → App (streamer dashboard + landing)
 // ---------------------------------------------------------------------------
 function Router() {
   const path = window.location.pathname;
-  const donateMatch = path.match(/^\/donate\/([^/]+)\/?$/i);
+  const suporterMatch = path.match(/^\/suporter\/([^/]+)\/?$/i);
 
-  if (donateMatch) {
-    const streamerUsername = decodeURIComponent(donateMatch[1]);
+  if (suporterMatch) {
+    const streamerUsername = decodeURIComponent(suporterMatch[1]);
     return <DonatePage streamerUsername={streamerUsername} />;
   }
 

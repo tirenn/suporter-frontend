@@ -37,6 +37,8 @@ export default function App() {
   const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
   const [copiedWebhookKey, setCopiedWebhookKey] = useState(false);
   const [showWebhookKey, setShowWebhookKey] = useState(false);
+  const [copiedWebhookSecret, setCopiedWebhookSecret] = useState(false);
+  const [showWebhookSecret, setShowWebhookSecret] = useState(false);
   const [zoomedQRIS, setZoomedQRIS] = useState(false);
   const [regeneratingKey, setRegeneratingKey] = useState(false);
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
@@ -58,6 +60,19 @@ export default function App() {
       setQrisInput(u.qris_url || '');
       setView('dashboard');
       fetchProjects();
+
+      // Fetch fresh profile from backend on reload to ensure active status is always up-to-date
+      api.getProfile()
+        .then((freshUser) => {
+          if (freshUser) {
+            setUser(freshUser);
+            setStoredUser(freshUser);
+            setQrisInput(freshUser.qris_url || '');
+          }
+        })
+        .catch((err) => {
+          console.warn('Could not refresh profile from server:', err);
+        });
     }
   }, []);
 
@@ -177,6 +192,14 @@ export default function App() {
     });
   }
 
+  function handleCopyWebhookSecret(secret) {
+    navigator.clipboard.writeText(secret).then(() => {
+      setCopiedWebhookSecret(true);
+      showToast('📋 Webhook Secret copied!');
+      setTimeout(() => setCopiedWebhookSecret(false), 2000);
+    });
+  }
+
   async function executeWebhookKeyRegen() {
     setShowRegenConfirm(false);
     setRegeneratingKey(true);
@@ -196,7 +219,7 @@ export default function App() {
     e.preventDefault();
     const slug = donateTarget.trim().toLowerCase();
     if (!slug) return;
-    window.location.href = `/donate/${encodeURIComponent(slug)}`;
+    window.location.href = `/suporter/${encodeURIComponent(slug)}`;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -435,13 +458,40 @@ export default function App() {
                       disabled={regeneratingKey}
                       style={{ padding: '8px 16px', fontSize: '0.85rem', borderColor: 'rgba(239, 68, 68, 0.4)', color: '#fca5a5' }}
                     >
-                      <span>{regeneratingKey ? 'Regenerating...' : 'Regenerate Key'}</span>
+                      <span>{regeneratingKey ? 'Regenerating...' : 'Regenerate Keys'}</span>
                     </button>
                   </div>
                 </div>
 
-                <div style={{ marginTop: '10px', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                  ℹ️ Webhook calls must include the header <code style={{ color: '#fef08a', fontFamily: 'var(--font-mono)' }}>X-Suporter-Key</code> with this key.
+                {/* Webhook Secret (HMAC Signing Secret) */}
+                {user.webhook_secret && (
+                  <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+                      <div>
+                        <span style={{ fontSize: '0.78rem', fontWeight: '750', textTransform: 'uppercase', color: 'var(--text-muted)' }}>HMAC Webhook Secret</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.88rem', color: '#fca5a5', letterSpacing: !showWebhookSecret ? '0.15em' : 'normal' }}>
+                            {showWebhookSecret ? user.webhook_secret : '••••••••••••••••••••••••••••••••'}
+                          </span>
+                          <button
+                            onClick={() => setShowWebhookSecret(!showWebhookSecret)}
+                            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
+                            title={showWebhookSecret ? 'Hide Webhook Secret' : 'Show Webhook Secret'}
+                          >
+                            {showWebhookSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                      </div>
+                      <button className="btn-secondary" onClick={() => handleCopyWebhookSecret(user.webhook_secret)} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+                        {copiedWebhookSecret ? <Check size={14} color="#34d399" /> : <Copy size={14} />}
+                        <span>{copiedWebhookSecret ? 'Copied Secret!' : 'Copy Secret'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ marginTop: '12px', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                  ℹ️ Webhook calls require <code style={{ color: '#fef08a', fontFamily: 'var(--font-mono)' }}>X-Suporter-Key</code> and HMAC-SHA256 signature <code style={{ color: '#fef08a', fontFamily: 'var(--font-mono)' }}>X-Suporter-Signature</code> with timestamp.
                 </div>
               </div>
             </div>
@@ -457,8 +507,8 @@ export default function App() {
                     <h4 style={{ fontSize: '1rem', fontWeight: '800', color: '#fff' }}>QRIS Image URL</h4>
                     <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                       Ditampilkan pada halaman donasi Anda di{' '}
-                      <a href={`/donate/${user.username}`} target="_blank" rel="noreferrer" style={{ color: '#34d399', textDecoration: 'underline' }}>
-                        /donate/{user.username}
+                      <a href={`/suporter/${user.username}`} target="_blank" rel="noreferrer" style={{ color: '#34d399', textDecoration: 'underline' }}>
+                        /suporter/{user.username}
                       </a>
                     </p>
                   </div>
@@ -529,12 +579,12 @@ export default function App() {
                 <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                   Bagikan link donasi kamu:{' '}
                   <a
-                    href={`/donate/${user.username}`}
+                    href={`/suporter/${user.username}`}
                     target="_blank"
                     rel="noreferrer"
                     style={{ color: '#34d399', fontWeight: '700', textDecoration: 'none' }}
                   >
-                    {window.location.origin}/donate/{user.username}
+                    {window.location.origin}/suporter/{user.username}
                   </a>
                 </span>
               </div>
