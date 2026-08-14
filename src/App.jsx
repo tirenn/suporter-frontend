@@ -233,7 +233,7 @@ export default function App() {
       {/* Header */}
       <header style={hdr.bar}>
         <div style={hdr.brand} onClick={() => view !== 'dashboard' && setView('landing')}>
-          <Tv size={24} color="#10b981" />
+          <img src="/logo.png" alt="Suporter Logo" style={{ width: '56px', height: '56px', objectFit: 'contain' }} />
           <h1 style={hdr.title}>SUPORTER</h1>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -298,20 +298,19 @@ export default function App() {
               </div>
               <div>
                 <h3 style={cardTitle}>Donate to Streamer</h3>
-                <p style={cardDesc}>Support your favourite streamer with QRIS. Input their username below.</p>
+                <p style={cardDesc}>Support your favorite content creator with instant OBS donation alert triggers.</p>
               </div>
-              <form onSubmit={handleGoToDonate} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: 'auto' }}>
+              <form onSubmit={handleGoToDonate} style={{ marginTop: 'auto', display: 'flex', gap: '8px' }}>
                 <input
                   type="text"
                   className="input-field"
-                  placeholder="Masukkan username streamer…"
+                  placeholder="Streamer username..."
                   value={donateTarget}
                   onChange={(e) => setDonateTarget(e.target.value)}
-                  required
-                  style={{ fontSize: '0.9rem' }}
+                  style={{ flex: 1, padding: '10px 14px', fontSize: '0.9rem' }}
                 />
-                <button type="submit" className="btn-primary" style={{ background: 'linear-gradient(90deg, #10b981, #059669)', justifyContent: 'center' }}>
-                  <ExternalLink size={16} /> Buka Halaman Donasi
+                <button type="submit" className="btn-primary" style={{ padding: '10px 16px', background: '#10b981' }}>
+                  Go →
                 </button>
               </form>
             </div>
@@ -322,7 +321,8 @@ export default function App() {
       {/* ── STREAMER LOGIN ── */}
       {view === 'streamer-login' && (
         <main className="fade-in" style={{ display: 'flex', justifyContent: 'center', marginTop: '30px' }}>
-          <div className="glass-card" style={{ width: '100%', maxWidth: '440px', padding: '36px' }}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: '440px', padding: '36px', textAlign: 'center' }}>
+            <img src="/logo.png" alt="Suporter" style={{ width: '120px', height: '120px', objectFit: 'contain', marginBottom: '16px' }} />
             <h3 style={{ fontSize: '1.35rem', fontWeight: '850', color: '#fff', marginBottom: '6px' }}>
               {authMode === 'login' ? 'Streamer Sign In' : 'Create Streamer Account'}
             </h3>
