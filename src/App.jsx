@@ -122,6 +122,10 @@ export default function App() {
         showToast('⚠️ Password harus mengandung minimal satu huruf kapital');
         return;
       }
+      if (!/\d/.test(authPassword)) {
+        showToast('⚠️ Password harus mengandung minimal satu angka (0-9)');
+        return;
+      }
       if (!/[!@#$%^&*(),.?":{}|<>_+\-=\[\]\\\/~`]/.test(authPassword)) {
         showToast('⚠️ Password harus mengandung minimal satu simbol/karakter khusus');
         return;
@@ -367,6 +371,11 @@ export default function App() {
                     {showPassword ? <EyeOff size={18} color="var(--text-muted)" /> : <Eye size={18} color="var(--text-muted)" />}
                   </button>
                 </div>
+                {authMode === 'register' && (
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px', lineHeight: '1.4' }}>
+                    🔒 Min. 8 karakter, wajib kombinasi huruf kapital (A-Z), angka (0-9), & simbol (@#$%).
+                  </p>
+                )}
               </div>
               <button type="submit" className="btn-primary" style={{ padding: '14px', width: '100%', justifyContent: 'center' }}>
                 {authMode === 'login' ? 'Sign In as Streamer' : 'Create Streamer Profile'}
@@ -591,21 +600,48 @@ export default function App() {
             </div>
 
             {/* Projects Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <div>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#fff' }}>Overlay Layouts</h2>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Add projects, overlay URLs, and templates.</p>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#fff' }}>OBS Overlay Widget</h2>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  {projects.length > 0
+                    ? 'Browser Source aktif untuk overlay live streaming OBS Studio kamu.'
+                    : 'Kamu belum memiliki OBS Overlay Widget. Buat project overlay kamu di bawah.'}
+                </p>
               </div>
-              <button className="btn-primary" onClick={() => setIsCreateOpen(true)}>
-                <Plus size={18} /><span>Create Project</span>
-              </button>
+
+              {projects.length === 0 ? (
+                <button className="btn-primary" onClick={() => setIsCreateOpen(true)}>
+                  <Plus size={18} /><span>Buat Project Overlay</span>
+                </button>
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'rgba(16, 185, 129, 0.12)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  padding: '6px 14px',
+                  borderRadius: '10px',
+                  fontSize: '0.82rem',
+                  color: '#34d399',
+                  fontWeight: '700'
+                }}>
+                  <span>✅ 1 Overlay Aktif (Maks. 1 Project)</span>
+                </div>
+              )}
             </div>
 
             {projects.length === 0 ? (
               <div className="glass-card" style={{ padding: '50px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
                 <Tv size={48} color="var(--text-muted)" />
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: '#fff' }}>No Projects Created</h3>
-                <button className="btn-primary" onClick={() => setIsCreateOpen(true)}>Create Project</button>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: '#fff' }}>Belum Ada Project Overlay</h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', maxWidth: '400px' }}>
+                  Buat project overlay untuk mendapatkan URL browser source yang siap dipasang langsung di OBS Studio.
+                </p>
+                <button className="btn-primary" onClick={() => setIsCreateOpen(true)}>
+                  <Plus size={18} /><span>Buat Project Sekarang</span>
+                </button>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
