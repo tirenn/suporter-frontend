@@ -41,6 +41,10 @@ async function request(endpoint, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    if (response.status === 401 && token) {
+      setStoredToken(null);
+      setStoredUser(null);
+    }
     throw new Error(data.error || `HTTP error! status: ${response.status}`);
   }
 
@@ -49,8 +53,8 @@ async function request(endpoint, options = {}) {
 
 export async function executeRecaptcha(action) {
   return new Promise((resolve, reject) => {
-    if (!window.grecaptcha) {
-      reject(new Error('reCAPTCHA script belum termuat'));
+    if (!window.grecaptcha || typeof window.grecaptcha.ready !== 'function') {
+      reject(new Error('reCAPTCHA script belum termuat. Periksa koneksi internet Anda atau nonaktifkan adblocker.'));
       return;
     }
     window.grecaptcha.ready(() => {
