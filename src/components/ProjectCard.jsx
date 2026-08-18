@@ -7,7 +7,8 @@ export default function ProjectCard({ project, onOpenTriggerAlert, onOpenEditTem
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
 
-  const rawBaseUrl = project.obs_url || `${BACKEND_URL}/overlay/${project.uuid}`;
+  const baseUrl = (BACKEND_URL || '').replace(/\/+$/, '');
+  const rawBaseUrl = baseUrl ? `${baseUrl}/overlay/${project.uuid}` : (project.obs_url || `/overlay/${project.uuid}`);
   const finalObsUrl = align === 'top-left' ? rawBaseUrl : `${rawBaseUrl}?align=${align}`;
 
   function handleCopyUrl() {
