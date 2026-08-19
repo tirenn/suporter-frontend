@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import DonatePage from './pages/DonatePage.jsx';
+import { initGA, trackPageView } from './utils/analytics';
 import './index.css';
+
+// Initialize Google Analytics if configured
+initGA();
 
 // ---------------------------------------------------------------------------
 // Simple client-side URL router — no external library needed.
@@ -13,6 +17,10 @@ import './index.css';
 function Router() {
   const path = window.location.pathname;
   const suporterMatch = path.match(/^\/suporter\/([^/]+)\/?$/i);
+
+  useEffect(() => {
+    trackPageView(path);
+  }, [path]);
 
   if (suporterMatch) {
     const streamerUsername = decodeURIComponent(suporterMatch[1]);

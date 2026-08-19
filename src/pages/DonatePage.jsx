@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { BACKEND_URL, executeRecaptcha, api } from '../api/client';
+import { trackEvent } from '../utils/analytics';
 import {
   Tv, Heart, User, MessageSquare, Landmark, AlertTriangle,
   CheckCircle, Loader, ArrowLeft, RefreshCw, Clock,
@@ -87,6 +88,11 @@ export default function DonatePage({ streamerUsername }) {
         token,
       );
       setDonation(result);
+      trackEvent('create_donation', {
+        streamer: streamerUsername,
+        amount: Number(amount),
+        currency: 'IDR',
+      });
     } catch (err) {
       const msg = err.message || '';
       if (msg.toLowerCase().includes('too many') || msg.includes('429') || msg.includes('tunggu')) {

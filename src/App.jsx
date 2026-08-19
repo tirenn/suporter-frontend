@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BACKEND_URL, api, executeRecaptcha, getStoredToken, getStoredUser, setStoredToken, setStoredUser } from './api/client';
+import { trackEvent } from './utils/analytics';
 import {
   Tv, Plus, Sparkles, Shield, ArrowLeft, Landmark,
   Copy, Check, Heart, ExternalLink, Edit3, Save, X,
@@ -139,9 +140,11 @@ export default function App() {
       if (authMode === 'register') {
         res = await api.register(authName, authUsername, authPassword, token);
         showToast('🎉 Account registered successfully!');
+        trackEvent('streamer_register', { username: authUsername });
       } else {
         res = await api.login(authUsername, authPassword, token);
         showToast('✅ Logged in successfully!');
+        trackEvent('streamer_login', { username: authUsername });
       }
 
       setStoredToken(res.access_token);
