@@ -1,0 +1,90 @@
+name: Suporter Frontend CI/CD Pipeline
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  # -------------------------------------------------------------
+  # CI JOB: Build Verification
+  # -------------------------------------------------------------
+  ci:
+    name: Build Frontend Application
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install & Build Check
+        run: |
+          if [ -n "${{ secrets.SUPORTER_FRONTEND_ENV }}" ]; then
+            echo "${{ secrets.SUPORTER_FRONTEND_ENV }}" > .env
+          fi
+          npm ci
+          npm run build
+
+  # -------------------------------------------------------------
+  # CD JOB: Deploy Frontend to Production VPS via SSH
+  # -------------------------------------------------------------
+  cd:
+    name: Deploy Frontend to VPS
+    needs: ci
+    if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SUPORTER_SSH_HOST }}
+          username: ${{ secrets.SUPORTER_SSH_USER }}
+          key: ${{ secrets.SUPORTER_SSH_KEY }}
+          port: ${{ secrets.SUPORTER_SSH_PORT || 22 }}
+          script: |
+            set -e
+            echo "🚀 Starting Suporter Frontend deployment on VPS..."
+
+            TARGET_DIR="/var/www/suporter-frontend"
+            mkdir -p $TARGET_DIR
+            cd $TARGET_DIR
+
+            # Clone if not present, otherwise pull latest changes
+            if [ ! -d ".git" ]; then
+              echo "Cloning repository..."
+              git clone https://github.com/${{ github.repository }}.git .
+            else
+              echo "Pulling latest code from ${{ github.ref_name }}..."
+              git fetch origin
+              git reset --hard origin/${{ github.ref_name }}
+            fi
+
+            # Inject .env secrets if provided
+            if [ -n "${{ secrets.SUPORTER_FRONTEND_ENV }}" ]; then
+              echo "Configuring .env..."
+              cat << 'EOF' > .env
+${{ secrets.SUPORTER_FRONTEND_ENV }}
+EOF
+            fi
+
+            # Build and launch Frontend Docker container
+            echo "Building and launching Frontend container..."
+            docker compose down || true
+            docker compose up --build -d
+
+            # Clean up dangling images
+            docker image prune -f
+
+            echo "✅ Frontend deployment completed successfully!"
