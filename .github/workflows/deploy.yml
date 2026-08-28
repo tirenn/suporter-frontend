@@ -48,18 +48,21 @@ jobs:
 
       - name: Deploy via SSH to VPS
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          FRONTEND_ENV: ${{ secrets.SUPORTER_FRONTEND_ENV }}
         with:
           host: ${{ secrets.SUPORTER_SSH_HOST }}
           username: ${{ secrets.SUPORTER_SSH_USER }}
           key: ${{ secrets.SUPORTER_SSH_KEY }}
           port: ${{ secrets.SUPORTER_SSH_PORT || 22 }}
+          envs: FRONTEND_ENV
           script: |
             set -e
             echo "🚀 Starting Suporter Frontend deployment on VPS..."
 
             TARGET_DIR="/var/www/suporter-frontend"
-            mkdir -p $TARGET_DIR
-            cd $TARGET_DIR
+            mkdir -p "$TARGET_DIR"
+            cd "$TARGET_DIR"
 
             # Clone if not present, otherwise pull latest changes
             if [ ! -d ".git" ]; then
@@ -72,11 +75,9 @@ jobs:
             fi
 
             # Inject .env secrets if provided
-            if [ -n "${{ secrets.SUPORTER_FRONTEND_ENV }}" ]; then
+            if [ -n "$FRONTEND_ENV" ]; then
               echo "Configuring .env..."
-              cat << 'EOF' > .env
-${{ secrets.SUPORTER_FRONTEND_ENV }}
-EOF
+              printf '%s\n' "$FRONTEND_ENV" > .env
             fi
 
             # Build and launch Frontend Docker container
