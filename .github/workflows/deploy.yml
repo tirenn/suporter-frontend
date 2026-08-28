@@ -86,8 +86,8 @@ jobs:
 
             # Build and launch Frontend Docker container
             echo "Building and launching Frontend container..."
-            docker compose down || true
-            docker compose up --build -d
+            docker compose down --remove-orphans || true
+            docker compose up --build -d --remove-orphans
 
             # Clean up dangling images
             docker image prune -f
