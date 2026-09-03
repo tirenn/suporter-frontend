@@ -95,16 +95,19 @@ jobs:
               fi
             fi
 
-            # 5. Build and start frontend container using Docker Compose
+            # 5. Ensure shared network tirenn-net exists
+            docker network create tirenn-net 2>/dev/null || true
+
+            # 6. Build and start frontend container using Docker Compose
             echo "Building and restarting Frontend Docker service..."
             docker compose down --remove-orphans || true
             docker compose up -d --build --remove-orphans
 
-            # 6. Check running containers
+            # 7. Check running containers
             echo "Verifying frontend container status..."
             docker compose ps
             
-            # 7. Clean up unused images
+            # 8. Clean up unused images
             echo "Cleaning up dangling docker images..."
             docker image prune -f || true
 

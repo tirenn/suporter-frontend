@@ -11,3 +11,9 @@ services:
       - .env
     ports:
       - "3000:80"
+    networks:
+      - tirenn-net
+
+networks:
+  tirenn-net:
+    external: true
