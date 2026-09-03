@@ -99,9 +99,9 @@ jobs:
             # 5. Ensure shared network tirenn-net exists
             docker network create tirenn-net 2>/dev/null || true
 
-            # 6. Build and start frontend container using Docker Compose
+            # 6. Build and start frontend container using Docker Compose (leveraging layer cache)
             echo "Building and restarting Frontend Docker service..."
-            docker compose build --no-cache
+            docker compose build --pull
             docker compose up -d --force-recreate --remove-orphans
 
             # 7. Check running containers
