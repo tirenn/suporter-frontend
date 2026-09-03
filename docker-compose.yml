@@ -10,7 +10,7 @@ services:
     env_file:
       - .env
     ports:
-      - "3000:80"
+      - "${PORT:-7080}:${PORT:-7080}"
     networks:
       - tirenn-net
 
