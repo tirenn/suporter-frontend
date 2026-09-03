@@ -101,16 +101,17 @@ jobs:
 
             # 6. Build and start frontend container using Docker Compose
             echo "Building and restarting Frontend Docker service..."
-            docker compose down --remove-orphans || true
-            docker compose up -d --build --remove-orphans
+            docker compose build --no-cache
+            docker compose up -d --force-recreate --remove-orphans
 
             # 7. Check running containers
             echo "Verifying frontend container status..."
             docker compose ps
             
-            # 8. Clean up unused images
-            echo "Cleaning up dangling docker images..."
-            docker image prune -f || true
+            # 8. Clean up unused images and old build layers
+            echo "Cleaning up unused Docker images and build cache..."
+            docker image prune -a -f --filter "until=24h" 2>/dev/null || docker image prune -f
+            docker builder prune -f --filter "until=24h" 2>/dev/null || true
 
             echo "=========================================================="
             echo "✅ Frontend Deployment of $RELEASE_TAG Completed Successfully!"
