@@ -20,15 +20,16 @@ ENV VITE_GA_MEASUREMENT_ID=$VITE_GA_MEASUREMENT_ID
 
 RUN npm run build
 
-# Stage 2: Serve with Nginx
+# Stage 2: Serve with Nginx using dynamic template port substitution
 FROM nginx:alpine
 
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx config template (Nginx entrypoint automatically substitutes ${PORT} from .env)
+COPY nginx.conf /etc/nginx/templates/default.conf.template
+
+# Fallback default port
+ENV PORT=7080
 
 # Copy build artifacts
 COPY --from=builder /app/dist /usr/share/nginx/html
-
-EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
